@@ -10,18 +10,18 @@ import jakarta.persistence.Table;
 public class UserSecret {
 
     @Id
-    @Column(name = "user_id")
-    private String userId;
+    @Column(name = "site_name")
+    private String siteName;
 
     @Column(name = "secret_key", nullable = false)
     private String secretKey;
 
-    public String getUserId() {
-        return userId;
+    public String getSiteName() {
+        return siteName;
     }
 
-    public void setUserId(String userId) {
-        this.userId = userId;
+    public void setSiteName(String siteName) {
+        this.siteName = siteName;
     }
 
     public String getSecretKey() {

@@ -7,7 +7,11 @@ import org.springframework.stereotype.Service;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.ByteBuffer;
+import java.security.SecureRandom;
 import java.util.Base64;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 
 @Service
 public class AuthenticatorService {
@@ -21,9 +25,26 @@ public class AuthenticatorService {
         this.userSecretRepository = userSecretRepository;
     }
 
-    public String createCode(Long epoch, String userId) {
-        UserSecret userSecret = userSecretRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("No secret found for userId: " + userId));
+    public void saveSecretKey(String siteName, String secretKey) {
+        UserSecret userSecret = new UserSecret();
+        userSecret.setSiteName(siteName);
+        userSecret.setSecretKey(secretKey);
+        userSecretRepository.save(userSecret);
+    }
+
+    public Map<String, String> getAllCodes() {
+        List<UserSecret> secrets = userSecretRepository.findAll();
+        long timeStep = System.currentTimeMillis() / 1000 / TIME_STEP;
+        Map<String, String> codes = new LinkedHashMap<>();
+        for (UserSecret secret : secrets) {
+            codes.put(secret.getSiteName(), generateTotp(secret.getSecretKey(), timeStep));
+        }
+        return codes;
+    }
+
+    public String createCode(Long epoch, String siteName) {
+        UserSecret userSecret = userSecretRepository.findById(siteName)
+                .orElseThrow(() -> new IllegalArgumentException("No secret found for siteName: " + siteName));
 
         long timeStep = epoch / TIME_STEP;
         return generateTotp(userSecret.getSecretKey(), timeStep);
@@ -38,7 +59,6 @@ public class AuthenticatorService {
             mac.init(new SecretKeySpec(keyBytes, "HmacSHA1"));
             byte[] hmac = mac.doFinal(timeBytes);
 
-            // Dynamic truncation (RFC 4226)
             int offset = hmac[hmac.length - 1] & 0x0F;
             int code = ((hmac[offset] & 0x7F) << 24)
                     | ((hmac[offset + 1] & 0xFF) << 16)
